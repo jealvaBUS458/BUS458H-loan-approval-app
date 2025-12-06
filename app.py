@@ -44,6 +44,21 @@ EMPLOYMENT_STATUS_OPTIONS = {
     "Unemployed": "unemployed",
 }
 
+EMPLOYMENT_SECTOR_OPTIONS = {
+    "Consumer Discretionary": "consumer_discretionary",
+    "Consumer Staples": "consumer_staples",
+    "Energy": "energy",
+    "Financials": "financials",
+    "Healthcare": "healthcare",
+    "Industrials": "industrials",
+    "Information Technology": "information_technology",
+    "Materials": "materials",
+    "Real Estate": "real_estate",
+    "Communication Services": "communication_services",
+    "Utilities": "utilities",
+    "Unknown / Other": "Unknown",
+}
+
 # -------------------------------
 # App Layout
 # -------------------------------
@@ -98,9 +113,9 @@ with col1:
         "Employment Status",
         list(EMPLOYMENT_STATUS_OPTIONS.keys()),
     )
-    employment_sector = st.text_input(
+    employment_sector_label = st.selectbox(
         "Employment Sector",
-        value="consumer_discretionary",
+        list(EMPLOYMENT_SECTOR_OPTIONS.keys()),
         help="Industry or sector for the applicant's employer.",
     )
 
@@ -161,6 +176,7 @@ ever_bankrupt_flag = 1 if ever_bankrupt == "Yes" else 0
 reason_value = REASON_OPTIONS[reason_label]
 fico_group_value = FICO_GROUP_OPTIONS[fico_label]
 employment_status_value = EMPLOYMENT_STATUS_OPTIONS[employment_label]
+employment_sector_value = EMPLOYMENT_SECTOR_OPTIONS[employment_sector_label]
 
 input_dict = {
     "Reason": reason_value,
@@ -168,7 +184,7 @@ input_dict = {
     "FICO_score": fico_score,
     "Fico_Score_group": fico_group_value,
     "Employment_Status": employment_status_value,
-    "Employment_Sector": employment_sector,
+    "Employment_Sector": employment_sector_value,
     "Monthly_Gross_Income": monthly_income,
     "Monthly_Housing_Payment": housing_payment,
     "Ever_Bankrupt_or_Foreclose": ever_bankrupt_flag,
