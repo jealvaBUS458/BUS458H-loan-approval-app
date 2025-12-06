@@ -3,10 +3,12 @@ import pandas as pd
 import numpy as np
 import joblib
 
-# -------- Load model artifacts --------
+# -------------------------------
+# Load model artifacts
+# -------------------------------
+
 @st.cache_resource
 def load_model():
-    # Make sure this matches your filename in the repo
     model_data = joblib.load("my_model.pkl")
     return model_data
 
@@ -15,92 +17,158 @@ model = model_data["model"]
 scaler = model_data["scaler"]
 feature_columns = model_data["feature_columns"]
 
-st.title("Loan Approval Prediction App")
+# -------------------------------
+# Pretty label → value mappings
+# -------------------------------
 
-st.write("""
-This app uses a Logistic Regression model trained in BUS458 to estimate the
-probability that a loan application will be approved.
-Fill in the fields below to get a prediction.
-""")
+REASON_OPTIONS = {
+    "Cover an Unexpected Cost": "cover_an_unexpected_cost",
+    "Credit Card Refinancing": "credit_card_refinancing",
+    "Debt Consolidation": "debt_conslidation",
+    "Home Improvement": "home_improvement",
+    "Major Purchase": "major_purchase",
+    "Other": "other",
+}
 
-# -------- User Inputs --------
-reason = st.selectbox(
-    "Reason for loan",
-    [
-        "cover_an_unexpected_cost",
-        "credit_card_refinancing",
-        "debt_conslidation",
-        "home_improvement",
-        "major_purchase",
-        "other",
-    ],
+FICO_GROUP_OPTIONS = {
+    "Poor": "poor",
+    "Fair": "fair",
+    "Good": "good",
+    "Very Good": "very_good",
+    "Excellent": "excellent",
+}
+
+EMPLOYMENT_STATUS_OPTIONS = {
+    "Full-Time": "full_time",
+    "Part-Time": "part_time",
+    "Unemployed": "unemployed",
+}
+
+# -------------------------------
+# App Layout
+# -------------------------------
+
+st.set_page_config(
+    page_title="Loan Approval Prediction",
+    page_icon="💳",
+    layout="centered",
 )
 
-fico_group = st.selectbox(
-    "FICO score group",
-    ["poor", "fair", "good", "very_good", "excellent"],
+st.title("💳 Loan Approval Prediction App")
+
+st.write(
+    """
+This app estimates the **probability that a loan application will be approved**  
+using a Logistic Regression model built for your BUS458 final project.
+"""
 )
 
-employment_status = st.selectbox(
-    "Employment status",
-    ["full_time", "part_time", "unemployed"],
-)
+with st.sidebar:
+    st.header("About this app")
+    st.markdown(
+        """
+- Built as part of **BUS458 – From Data to Decisions**  
+- Model: Logistic Regression  
+- Target: Loan **Approved (0/1)**  
+- Cutoff: **0.70** for a conservative recommendation
 
-employment_sector = st.text_input(
-    "Employment sector",
-    value="consumer_discretionary",
-)
+You can adjust the inputs and see how the predicted approval probability changes.
+"""
+    )
+    st.markdown("---")
+    st.caption("Author: Jonah Alva")
 
-lender = st.selectbox(
-    "Lender",
-    ["A", "B", "C"],
-)
+st.markdown("### Applicant Information")
 
-requested_amount = st.number_input(
-    "Requested loan amount",
-    min_value=5000.0,
-    max_value=2500000.0,
-    value=40000.0,
-    step=1000.0,
-)
+# -------------------------------
+# Input widgets
+# -------------------------------
 
-fico_score = st.number_input(
-    "FICO score",
-    min_value=300.0,
-    max_value=850.0,
-    value=650.0,
-    step=1.0,
-)
+col1, col2 = st.columns(2)
 
-monthly_income = st.number_input(
-    "Monthly gross income",
-    min_value=0.0,
-    max_value=20000.0,
-    value=5000.0,
-    step=100.0,
-)
+with col1:
+    reason_label = st.selectbox(
+        "Reason for Loan",
+        list(REASON_OPTIONS.keys()),
+    )
+    fico_label = st.selectbox(
+        "FICO Score Group",
+        list(FICO_GROUP_OPTIONS.keys()),
+    )
+    employment_label = st.selectbox(
+        "Employment Status",
+        list(EMPLOYMENT_STATUS_OPTIONS.keys()),
+    )
+    employment_sector = st.text_input(
+        "Employment Sector",
+        value="consumer_discretionary",
+        help="Industry or sector for the applicant's employer.",
+    )
 
-housing_payment = st.number_input(
-    "Monthly housing payment",
-    min_value=0.0,
-    max_value=50000.0,
-    value=1500.0,
-    step=50.0,
-)
+with col2:
+    lender = st.selectbox(
+        "Preferred Lender",
+        ["A", "B", "C"],
+        format_func=lambda x: f"Lender {x}",
+    )
+    fico_score = st.number_input(
+        "FICO Score",
+        min_value=300.0,
+        max_value=850.0,
+        value=650.0,
+        step=1.0,
+    )
+    requested_amount = st.number_input(
+        "Requested Loan Amount ($)",
+        min_value=5_000.0,
+        max_value=2_500_000.0,
+        value=40_000.0,
+        step=1_000.0,
+    )
+
+st.markdown("### Financial Profile")
+
+col3, col4 = st.columns(2)
+
+with col3:
+    monthly_income = st.number_input(
+        "Monthly Gross Income ($)",
+        min_value=0.0,
+        max_value=50_000.0,
+        value=5_000.0,
+        step=100.0,
+    )
+
+with col4:
+    housing_payment = st.number_input(
+        "Monthly Housing Payment ($)",
+        min_value=0.0,
+        max_value=50_000.0,
+        value=1_500.0,
+        step=50.0,
+    )
 
 ever_bankrupt = st.selectbox(
-    "Ever bankrupt or foreclosed?",
+    "Ever Bankrupt or Foreclosed?",
     ["No", "Yes"],
 )
 ever_bankrupt_flag = 1 if ever_bankrupt == "Yes" else 0
 
-# -------- Build model input row --------
+# -------------------------------
+# Build model input row
+# -------------------------------
+
+# Map pretty labels → raw model values
+reason_value = REASON_OPTIONS[reason_label]
+fico_group_value = FICO_GROUP_OPTIONS[fico_label]
+employment_status_value = EMPLOYMENT_STATUS_OPTIONS[employment_label]
+
 input_dict = {
-    "Reason": reason,
+    "Reason": reason_value,
     "Requested_Loan_Amount": requested_amount,
     "FICO_score": fico_score,
-    "Fico_Score_group": fico_group,
-    "Employment_Status": employment_status,
+    "Fico_Score_group": fico_group_value,
+    "Employment_Status": employment_status_value,
     "Employment_Sector": employment_sector,
     "Monthly_Gross_Income": monthly_income,
     "Monthly_Housing_Payment": housing_payment,
@@ -110,20 +178,49 @@ input_dict = {
 
 input_df = pd.DataFrame([input_dict])
 
-# Apply same one-hot encoding as training
+# One-hot encode exactly like training
 input_dummies = pd.get_dummies(input_df, drop_first=True)
 
-# Align columns with training matrix (missing cols filled with 0)
+# Align columns with training feature matrix
 input_aligned = input_dummies.reindex(columns=feature_columns, fill_value=0)
 
-# Scale numeric features with the same scaler
+# Scale numerical features
 input_scaled = scaler.transform(input_aligned)
 
-# -------- Prediction --------
-if st.button("Predict approval probability"):
-    proba = model.predict_proba(input_scaled)[0, 1]
-    st.metric("Predicted probability of approval", f"{proba:.2%}")
+# -------------------------------
+# Prediction
+# -------------------------------
 
-    threshold = 0.7  # match what you used in the notebook
-    decision = "✅ Recommend" if proba >= threshold else "❌ Do not recommend"
-    st.write(f"Decision at threshold {threshold:.2f}: **{decision}**")
+st.markdown("---")
+if st.button("🔮 Predict Approval Probability"):
+    proba = model.predict_proba(input_scaled)[0, 1]
+    threshold = 0.70
+
+    col_left, col_right = st.columns([1, 1])
+
+    with col_left:
+        st.metric(
+            "Predicted Probability of Approval",
+            f"{proba:.2%}",
+        )
+
+    with col_right:
+        decision = "✅ Recommend (Above Cutoff)" if proba >= threshold else "❌ Do Not Recommend"
+        st.write(f"**Decision at cutoff {threshold:.2f}:**")
+        st.write(decision)
+
+    st.markdown("#### Interpretation")
+    if proba >= threshold:
+        st.write(
+            "This applicant has a relatively **high predicted chance of approval** "
+            "given the current model and cutoff. From the platform's perspective, "
+            "they may be a good candidate to route to this lender."
+        )
+    else:
+        st.write(
+            "This applicant has a **lower predicted chance of approval** under the "
+            "current model and cutoff. The platform may want to either decline or "
+            "consider alternative lenders/terms."
+        )
+else:
+    st.info("Fill out the form and click **Predict Approval Probability** to see the model's output.")
